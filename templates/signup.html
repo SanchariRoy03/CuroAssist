@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sign Up - CuroAssist</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <style>
     body {
       background: linear-gradient(135deg, #74ebd5 0%, #9face6 100%);
@@ -12,93 +13,328 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      font-family: Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       padding: 20px 0;
+      margin: 0;
     }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background:
+        radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
     .signup-container {
-      background: #fff;
-      padding: 2rem;
-      border-radius: 1rem;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 24px;
+      padding: 40px;
       width: 100%;
-      max-width: 400px;
+      max-width: 480px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      position: relative;
+      z-index: 1;
+      transition: transform 0.3s ease;
     }
-    .signup-container h2 {
+
+    .signup-container:hover {
+      transform: translateY(-2px);
+    }
+
+    .auth-header {
       text-align: center;
-      margin-bottom: 1.5rem;
-      color: #333;
-      font-weight: 600;
+      margin-bottom: 32px;
     }
+
+    .auth-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .auth-subtitle {
+      color: #666;
+      font-size: 16px;
+      margin: 0;
+    }
+
     .form-label {
-      font-weight: 500;
-      color: #555;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 8px;
     }
+
     .form-control {
-      border-radius: 8px;
-      border: 1px solid #ddd;
-      padding: 0.75rem;
+      border: 2px solid rgba(0, 0, 0, 0.1);
+      border-radius: 12px;
+      padding: 16px 20px;
+      font-size: 14px;
       transition: all 0.3s ease;
+      background: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(10px);
+      margin-bottom: 16px;
     }
+
     .form-control:focus {
       border-color: #007bff;
-      box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+      box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+      background: rgba(255, 255, 255, 0.95);
     }
-    .btn-primary {
-      width: 100%;
-      border-radius: 25px;
-      background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
-      border: none;
-      padding: 0.75rem;
-      font-weight: 600;
-      transition: all 0.3s ease;
+
+    .input-group {
+      margin-bottom: 16px;
     }
-    .btn-primary:hover {
-      background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
-      transform: translateY(-1px);
-    }
-    .text-center a {
-      text-decoration: none;
-      color: #007bff;
+
+    .input-group-text {
+      background: rgba(255, 255, 255, 0.8);
+      border: 2px solid rgba(0, 0, 0, 0.1);
+      border-right: none;
+      color: #666;
       font-weight: 500;
-      transition: color 0.3s ease;
     }
-    .text-center a:hover {
+
+    .input-group .form-control {
+      border-left: none;
+      margin-bottom: 0;
+    }
+
+    .input-group:focus-within .input-group-text {
+      border-color: #007bff;
+      background: rgba(255, 255, 255, 0.95);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #007bff, #0056b3);
+      border: none;
+      padding: 16px 32px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 16px;
+      width: 100%;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0, 123, 255, 0.4);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .auth-links {
+      text-align: center;
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(0, 0, 0, 0.1);
+    }
+
+    .auth-links a {
+      color: #007bff;
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.2s ease;
+    }
+
+    .auth-links a:hover {
       color: #0056b3;
+      text-decoration: underline;
     }
+
     .alert {
-      border-radius: 8px;
-      font-size: 14px;
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      border: none;
+      font-weight: 500;
     }
+
+    .alert-danger {
+      background: rgba(220, 53, 69, 0.1);
+      color: #dc3545;
+      border: 1px solid rgba(220, 53, 69, 0.2);
+    }
+
+    .alert-success {
+      background: rgba(40, 167, 69, 0.1);
+      color: #28a745;
+      border: 1px solid rgba(40, 167, 69, 0.2);
+    }
+
+    .form-text {
+      font-size: 12px;
+      color: #666;
+      margin-top: -12px;
+      margin-bottom: 16px;
+    }
+
     .password-requirements {
       font-size: 12px;
       color: #666;
-      margin-top: 5px;
+      margin-top: -12px;
+      margin-bottom: 16px;
     }
-    .loading {
+
+    .loading-spinner {
       display: none;
+      margin-right: 8px;
     }
-    .loading .spinner-border {
-      width: 1rem;
-      height: 1rem;
+
+    .loading-spinner.show {
+      display: inline-block;
+    }
+
+    .twilio-notice {
+      background: rgba(0, 123, 255, 0.1);
+      border: 1px solid rgba(0, 123, 255, 0.2);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 24px;
+      font-size: 14px;
+      color: #0056b3;
+      line-height: 1.5;
+    }
+
+    .twilio-notice h6 {
+      color: #003f7f;
+      font-weight: 700;
+      margin-bottom: 12px;
+      font-size: 15px;
+    }
+
+    .twilio-features {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .feature-badge {
+      background: rgba(40, 167, 69, 0.1);
+      color: #155724;
+      border: 1px solid rgba(40, 167, 69, 0.2);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .whatsapp-info {
+      background: rgba(37, 211, 102, 0.1);
+      border: 1px solid rgba(37, 211, 102, 0.2);
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 12px;
+      font-size: 13px;
+      color: #155724;
+    }
+
+    .whatsapp-info strong {
+      color: #25d366;
+    }
+
+    .country-examples {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+      font-size: 11px;
+    }
+
+    .country-example {
+      background: rgba(108, 117, 125, 0.1);
+      border-radius: 12px;
+      padding: 4px 8px;
+      color: #6c757d;
+      font-weight: 500;
+    }
+
+    @media (max-width: 480px) {
+      .signup-container {
+        margin: 10px;
+        padding: 24px;
+        border-radius: 16px;
+        max-width: none;
+      }
+
+      .auth-title {
+        font-size: 24px;
+      }
+
+      .twilio-features {
+        flex-direction: column;
+        gap: 8px;
+      }
     }
   </style>
 </head>
 <body>
   <div class="signup-container">
-    <h2>Create Your Account</h2>
-    
-    <!-- Success/Error Messages -->
-    {% if error %}
-      <div class="alert alert-danger" role="alert">
-        {{ error }}
+    <div class="auth-header">
+      <h1 class="auth-title">
+        <i class="fas fa-stethoscope" style="color: #007bff;"></i>
+        CuroAssist
+      </h1>
+      <p class="auth-subtitle">Create your health assistant account</p>
+    </div>
+
+    <div class="twilio-notice">
+      <h6>
+        <i class="fab fa-twilio" style="color: #F22F46;"></i>
+        Emergency Alert System Powered by Twilio
+      </h6>
+      <p style="margin: 0 0 12px 0;">
+        Add your phone number to receive instant emergency alerts with doctor contact details during critical health conditions.
+      </p>
+      
+      <div class="twilio-features">
+        <div class="feature-badge">
+          <i class="fas fa-sms"></i>
+          SMS Alerts
+        </div>
+        <div class="feature-badge">
+          <i class="fab fa-whatsapp"></i>
+          WhatsApp Messaging
+        </div>
+        <div class="feature-badge">
+          <i class="fas fa-globe"></i>
+          International Support
+        </div>
+        <div class="feature-badge">
+          <i class="fas fa-shield-alt"></i>
+          Secure & Reliable
+        </div>
       </div>
-    {% endif %}
-    {% if message %}
-      <div class="alert alert-success" role="alert">
-        {{ message }}
+
+      <div class="whatsapp-info">
+        <i class="fab fa-whatsapp" style="color: #25d366; margin-right: 6px;"></i>
+        <strong>WhatsApp Setup:</strong> To receive WhatsApp alerts, send "<strong>join flower-except</strong>" to <strong>+1 415 523 8886</strong> on WhatsApp after signup.
       </div>
-    {% endif %}
-    
+    </div>
+
+    <div id="alertContainer"></div>
+
     <form id="signupForm" method="POST" action="/signup">
       <div class="mb-3">
         <label for="name" class="form-label">Full Name</label>
@@ -111,6 +347,20 @@
         <label for="email" class="form-label">Email Address *</label>
         <input type="email" class="form-control" id="email" name="email" 
                placeholder="you@example.com" required maxlength="255">
+      </div>
+
+      <div class="mb-3">
+        <label for="phone" class="form-label">Phone Number (Emergency Alerts)</label>
+        <div class="input-group">
+          <span class="input-group-text">
+            <i class="fas fa-mobile-alt"></i>
+          </span>
+          <input type="tel" class="form-control" id="phone" name="phone" 
+                 placeholder="+1 2345678901 or +91 9876543210" maxlength="20">
+        </div>
+        <div class="form-text">
+          Optional - for emergency health alerts
+        </div>
       </div>
       
       <div class="mb-3">
@@ -128,17 +378,240 @@
                placeholder="Re-enter your password" required minlength="6" maxlength="128">
       </div>
 
-      <button type="submit" class="btn btn-primary">
-        <span class="loading">
-          <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+      <button type="submit" class="btn btn-primary" id="signupBtn">
+        <span class="loading-spinner" id="loadingSpinner">
+          <i class="fas fa-spinner fa-spin"></i>
         </span>
-        Create Account
+        <span id="signupBtnText">Create Account</span>
       </button>
     </form>
 
-    <p class="text-center mt-3">
-      Already have an account? <a href="/login">Login here</a>
-    </p>
+    <div class="auth-links">
+      <p>Already have an account? <a href="/login">Login here</a></p>
+    </div>
   </div>
+
+  <script>
+    const signupForm = document.getElementById('signupForm');
+    const signupBtn = document.getElementById('signupBtn');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    const signupBtnText = document.getElementById('signupBtnText');
+    const alertContainer = document.getElementById('alertContainer');
+
+    // Show alert
+    function showAlert(message, type = 'danger') {
+      alertContainer.innerHTML = `
+        <div class="alert alert-${type}">
+          <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-triangle'}"></i>
+          ${message}
+        </div>
+      `;
+
+      // Auto-hide alert after 5 seconds
+      setTimeout(() => {
+        alertContainer.innerHTML = '';
+      }, 5000);
+    }
+
+    // Enhanced phone number validation for international formats (E.164)
+    function validatePhoneNumber(phone) {
+      if (!phone) return true; // Phone is optional
+      
+      // Remove all non-numeric characters except +
+      const cleaned = phone.replace(/[^\d+]/g, '');
+      
+      // E.164 format: + followed by 1-15 digits
+      const phoneRegex = /^\+[1-9]\d{1,14}$/;
+      return phoneRegex.test(cleaned);
+    }
+
+    // Format phone number as user types with international support
+    document.getElementById('phone').addEventListener('input', function(e) {
+      let value = e.target.value.trim();
+      
+      // If user starts typing without +, suggest adding it
+      if (value && !value.startsWith('+')) {
+        // Common country code detection patterns
+        if (/^[6-9]/.test(value) && value.length <= 10) {
+          // Likely Indian number
+          value = '+91' + value;
+        } else if (/^[2-9]/.test(value) && value.length <= 10) {
+          // Likely US/Canada number
+          value = '+1' + value;
+        } else if (/^[1-9]/.test(value)) {
+          // Add + for other numbers
+          value = '+' + value;
+        }
+        e.target.value = value;
+      }
+    });
+
+    // Real-time phone number validation feedback
+    document.getElementById('phone').addEventListener('blur', function(e) {
+      const phone = e.target.value.trim();
+      const formText = e.target.parentElement.nextElementSibling;
+      
+      if (phone && !validatePhoneNumber(phone)) {
+        e.target.style.borderColor = '#dc3545';
+        formText.innerHTML = '<i class="fas fa-exclamation-circle text-danger"></i> Invalid format. Use international format: +1 2345678901';
+        formText.style.color = '#dc3545';
+      } else if (phone) {
+        e.target.style.borderColor = '#28a745';
+        formText.innerHTML = '<i class="fas fa-check-circle text-success"></i> Valid international format. You\'ll receive emergency SMS & WhatsApp alerts.';
+        formText.style.color = '#28a745';
+      } else {
+        e.target.style.borderColor = '';
+        formText.innerHTML = '<i class="fas fa-shield-alt text-success"></i> For emergency SMS & WhatsApp alerts with doctor details. International format required (E.164).';
+        formText.style.color = '#666';
+      }
+    });
+
+    // Handle form submit
+    signupForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      // Disable button + show spinner
+      signupBtn.disabled = true;
+      loadingSpinner.classList.add('show');
+      signupBtnText.textContent = 'Creating Account...';
+
+      const name = document.getElementById('name').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const phone = document.getElementById('phone').value.trim();
+      const password = document.getElementById('password').value.trim();
+      const confirm = document.getElementById('confirm').value.trim();
+
+      // Validate input
+      if (!email || !password) {
+        resetButton();
+        showAlert("Email and password are required.", "danger");
+        return;
+      }
+
+      if (password.length < 6) {
+        resetButton();
+        showAlert("Password must be at least 6 characters long.", "danger");
+        return;
+      }
+
+      if (password !== confirm) {
+        resetButton();
+        showAlert("Passwords do not match.", "danger");
+        return;
+      }
+
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        resetButton();
+        showAlert("Please enter a valid email address.", "danger");
+        return;
+      }
+
+      // Validate phone number if provided
+      if (phone && !validatePhoneNumber(phone)) {
+        resetButton();
+        showAlert("Please enter a valid phone number in international format (e.g., +1 2345678901 or +91 9876543210).", "danger");
+        return;
+      }
+
+      // Send signup request to Flask backend
+      fetch('/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: name || email.split('@')[0],
+          email: email,
+          phone: phone,
+          password: password,
+          confirm: confirm
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        resetButton();
+        
+        if (data.success) {
+          let successMessage = data.message || "Account created successfully!";
+          if (phone) {
+            successMessage += " Don't forget to send 'join flower-except' to +1 415 523 8886 on WhatsApp for emergency alerts.";
+          }
+          showAlert(successMessage, "success");
+          setTimeout(() => {
+            window.location.href = "/login?message=" + encodeURIComponent("Account created successfully! Please login.");
+          }, 3000);
+        } else {
+          showAlert(data.message || "Registration failed. Please try again.", "danger");
+        }
+      })
+      .catch(error => {
+        resetButton();
+        console.error('Signup error:', error);
+        showAlert("Connection error. Please check your internet connection and try again.", "danger");
+      });
+    });
+
+    // Reset button state
+    function resetButton() {
+      signupBtn.disabled = false;
+      loadingSpinner.classList.remove('show');
+      signupBtnText.textContent = 'Create Account';
+    }
+
+    // Show any server-side messages
+    window.addEventListener('DOMContentLoaded', function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const message = urlParams.get('message');
+      const error = urlParams.get('error');
+      
+      if (message) {
+        showAlert(message, 'success');
+      }
+      if (error) {
+        showAlert(error, 'danger');
+      }
+    });
+
+    // Add helpful tooltips on focus
+    document.getElementById('phone').addEventListener('focus', function() {
+      const tooltip = document.createElement('div');
+      tooltip.id = 'phoneTooltip';
+      tooltip.style.cssText = `
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: rgba(0, 123, 255, 0.1);
+        border: 1px solid rgba(0, 123, 255, 0.2);
+        border-radius: 8px;
+        padding: 12px;
+        font-size: 12px;
+        color: #0056b3;
+        z-index: 1000;
+        margin-top: 4px;
+      `;
+      tooltip.innerHTML = `
+        <strong>International Format Examples:</strong><br>
+        🇺🇸 United States: +1 2345678901<br>
+        🇮🇳 India: +91 9876543210<br>
+        🇬🇧 United Kingdom: +44 7123456789<br>
+        🇨🇦 Canada: +1 4165551234
+      `;
+      
+      if (!document.getElementById('phoneTooltip')) {
+        this.parentElement.style.position = 'relative';
+        this.parentElement.appendChild(tooltip);
+      }
+    });
+
+    document.getElementById('phone').addEventListener('blur', function() {
+      const tooltip = document.getElementById('phoneTooltip');
+      if (tooltip) {
+        tooltip.remove();
+      }
+    });
+  </script>
 </body>
 </html>

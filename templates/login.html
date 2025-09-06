@@ -253,10 +253,10 @@
             </div>
         `;
 
-        // Auto-hide alert after 3 seconds
+        // Auto-hide alert after 5 seconds
         setTimeout(() => {
             alertContainer.innerHTML = '';
-        }, 3000);
+        }, 5000);
     }
 
     // Toggle password visibility
@@ -272,7 +272,7 @@
         }
     }
 
-    // Handle form submit
+    // Handle form submit - Now connects to Flask backend
     loginForm.addEventListener('submit', function(e) {
         e.preventDefault();
 
@@ -284,20 +284,72 @@
         const email = document.getElementById('email').value.trim();
         const password = passwordField.value.trim();
 
-        // Simulate login request (replace with real API)
-        setTimeout(() => {
-            loginBtn.disabled = false;
-            loadingSpinner.classList.remove('show');
-            loginBtnText.textContent = 'Sign In';
+        // Validate input
+        if (!email || !password) {
+            resetButton();
+            showAlert("Please enter both email and password.", "danger");
+            return;
+        }
 
-            if (email === "test@example.com" && password === "password123") {
-                showAlert("Login successful! Redirecting...", "success");
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            resetButton();
+            showAlert("Please enter a valid email address.", "danger");
+            return;
+        }
+
+        // Send login request to Flask backend
+        fetch('/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                email: email,
+                password: password
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            resetButton();
+            
+            if (data.success) {
+                showAlert(data.message || "Login successful! Redirecting...", "success");
                 setTimeout(() => {
-                    window.location.href = "/dashboard"; // Redirect after login
+                    window.location.href = "/chatbot";
                 }, 1500);
             } else {
-                showAlert("Invalid email or password. Please try again.", "danger");
+                showAlert(data.message || "Login failed. Please try again.", "danger");
             }
-        }, 1500);
+        })
+        .catch(error => {
+            resetButton();
+            console.error('Login error:', error);
+            showAlert("Connection error. Please check your internet connection and try again.", "danger");
+        });
+    });
+
+    // Reset button state
+    function resetButton() {
+        loginBtn.disabled = false;
+        loadingSpinner.classList.remove('show');
+        loginBtnText.textContent = 'Sign In';
+    }
+
+    // Show any server-side messages (e.g., from redirect)
+    window.addEventListener('DOMContentLoaded', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const message = urlParams.get('message');
+        const error = urlParams.get('error');
+        
+        if (message) {
+            showAlert(message, 'success');
+        }
+        if (error) {
+            showAlert(error, 'danger');
+        }
     });
 </script>
+</body>
+</html>

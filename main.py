@@ -1129,15 +1129,8 @@ def signup():
             success = db_manager.create_user(name, email, password)
             if success:
                 logger.info(f"User account created successfully: {email}")
-                user = db_manager.users.find_one({"email": email})
-                if user:
-                    # Save session like login
-                    session['user_id'] = str(user['_id'])
-                    session['user_name'] = user['name']
-                    session['user_email'] = user['email']
-                    if chatbot:
-                        chatbot.set_current_user(user)
-                return redirect(url_for("chatbot_interface"))
+                return redirect(url_for("login", message="Account created successfully"))
+
             else:
                 return render_template("signup.html", error="Failed to create account")
 

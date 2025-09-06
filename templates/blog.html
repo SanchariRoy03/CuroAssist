@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Health Blog - Health Care</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    body {
+      background: linear-gradient(to right, #ccefff, #f0fff0);
+      min-height: 100vh;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    .blog-title {
+      font-weight: 700;
+      font-size: 2.5rem;
+      color: #0d6efd;
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .card {
+      border: none;
+      border-radius: 16px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+      transition: transform 0.2s ease;
+      background-color: #fff;
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+    }
+
+    .card-title {
+      color: #198754;
+      font-weight: 600;
+      font-size: 1.25rem;
+    }
+
+    .card-text {
+      font-size: 1rem;
+      color: #333;
+    }
+
+    .footer {
+      background-color: #222;
+      color: #fff;
+      padding: 20px 0;
+      text-align: center;
+      margin-top: 60px;
+    }
+
+    @media (max-width: 768px) {
+      .card-title {
+        font-size: 1.1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ✅ Include Navbar -->
+  {% include 'partials/navbar.html' %}
+
+  <!-- ✅ Blog Page Content -->
+  <div class="container py-5">
+    <h1 class="blog-title">Health Education & Wellness Insights</h1>
+
+    <div class="row g-4">
+      <div class="col-md-6 col-lg-4">
+        <div class="card h-100 p-3">
+          <div class="card-body">
+            <h5 class="card-title">Importance of Early Diagnosis</h5>
+            <p class="card-text">Early diagnosis leads to timely treatment, better outcomes, and reduced healthcare costs. Recognizing symptoms early saves lives.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-lg-4">
+        <div class="card h-100 p-3">
+          <div class="card-body">
+            <h5 class="card-title">Boost Immunity with Diet</h5>
+            <p class="card-text">A balanced diet rich in fruits, vegetables, and whole foods can naturally strengthen your immune system and protect against illness.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-lg-4">
+        <div class="card h-100 p-3">
+          <div class="card-body">
+            <h5 class="card-title">Exercise and Mental Health</h5>
+            <p class="card-text">Regular physical activity helps reduce stress, improves sleep, and supports brain function. Just 30 minutes a day makes a difference.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-lg-4">
+        <div class="card h-100 p-3">
+          <div class="card-body">
+            <h5 class="card-title">Preventive Care Practices</h5>
+            <p class="card-text">Routine screenings and vaccinations play a vital role in preventing major diseases. Prevention is better than cure—always.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-lg-4">
+        <div class="card h-100 p-3">
+          <div class="card-body">
+            <h5 class="card-title">Recognize Your Symptoms</h5>
+            <p class="card-text">Understanding symptom patterns can guide timely decisions. Use tools like our symptom checker to stay informed.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-lg-4">
+        <div class="card h-100 p-3">
+          <div class="card-body">
+            <h5 class="card-title">Digital Health is the Future</h5>
+            <p class="card-text">Technology bridges gaps in access to care. From virtual consultations to AI tools, digital health is transforming how we stay well.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ✅ Footer -->
+  <footer class="footer">
+    <div class="container">
+      <small>© 2025 Health Care Center • Developed by <strong>Sanchari Roy</strong></small>
+    </div>
+  </footer>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

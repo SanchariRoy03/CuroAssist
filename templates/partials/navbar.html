@@ -1,0 +1,32 @@
+<!-- partials/navbar.html -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+  <div class="container-fluid">
+    <img src="{{ url_for('static', filename='health-care-medical-clinic-center-logo-479.webp') }}" alt="Logo" class="myimg me-2" style="width: 40px; height: 40px; object-fit: cover; border-radius: 50%;" />
+    <a class="navbar-brand" href="#">Health Care Center</a>
+
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item"><a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/">Home</a></li>
+        <li class="nav-item"><a class="nav-link {% if request.path == '/about' %}active{% endif %}" href="/about">About</a></li>
+        <li class="nav-item"><a class="nav-link" href="/contact">Contact</a></li>
+        <li class="nav-item"><a class="nav-link" href="/developer">Developer</a></li>
+        <li class="nav-item"><a class="nav-link" href="/blog">HealthPlus Insights</a></li>
+      </ul>
+
+      <ul class="navbar-nav">
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Account</a>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item" href="/login">Login</a></li>
+            <li><a class="dropdown-item" href="/register">Register</a></li>
+            <li><a class="dropdown-item" href="/profile">Profile</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>

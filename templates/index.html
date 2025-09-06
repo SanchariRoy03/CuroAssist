@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Health Care Chatbot</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <style>
+        body {
+            background: linear-gradient(to right, #ccefff, #f0fff0);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Poppins', sans-serif;
+        }
+        .chat-container {
+            width: 100%;
+            max-width: 500px;
+            background: #fff;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 80vh;
+        }
+        .chat-header {
+            background-color: #007bff;
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            font-weight: 600;
+        }
+        .chat-body {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .chat-message {
+            max-width: 80%;
+            padding: 0.75rem 1rem;
+            border-radius: 20px;
+            word-wrap: break-word;
+        }
+        .bot-message {
+            background-color: #e3f2fd;
+            align-self: flex-start;
+        }
+        .user-message {
+            background-color: #007bff;
+            color: white;
+            align-self: flex-end;
+        }
+        .chat-footer {
+            display: flex;
+            padding: 0.5rem;
+            gap: 0.5rem;
+            border-top: 1px solid #ccc;
+        }
+        .chat-footer input {
+            flex: 1;
+            border-radius: 20px;
+            border: 1px solid #ccc;
+            padding: 0.5rem 1rem;
+        }
+        .chat-footer button {
+            border-radius: 20px;
+            border: none;
+            padding: 0.5rem 1rem;
+            background-color: #007bff;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+<div class="chat-container">
+    <div class="chat-header">
+        🩺 Health Care Chatbot
+    </div>
+
+    <div class="chat-body" id="chatBody">
+        <div class="chat-message bot-message">Hello! I am your health assistant 🤖. Tell me your symptoms to get started.</div>
+    </div>
+
+    <form class="chat-footer" id="chatForm" action="/predict" method="post">
+        <input type="text" id="userInput" name="symptoms" placeholder="e.g., headache, fever" required autocomplete="off"/>
+        <button type="submit">Send</button>
+    </form>
+</div>
+
+<script>
+    const chatBody = document.getElementById('chatBody');
+    const chatForm = document.getElementById('chatForm');
+    const userInput = document.getElementById('userInput');
+
+    chatForm.addEventListener('submit', function(e){
+        e.preventDefault();
+
+        // Show user's message
+        const userMessage = userInput.value;
+        if(userMessage.trim() === "") return;
+
+        const userDiv = document.createElement('div');
+        userDiv.classList.add('chat-message', 'user-message');
+        userDiv.innerText = userMessage;
+        chatBody.appendChild(userDiv);
+
+        // Scroll to bottom
+        chatBody.scrollTop = chatBody.scrollHeight;
+
+        // Send data to server
+        fetch('/predict', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: `symptoms=${encodeURIComponent(userMessage)}`
+        })
+        .then(response => response.text())
+        .then(data => {
+            const botDiv = document.createElement('div');
+            botDiv.classList.add('chat-message', 'bot-message');
+            botDiv.innerHTML = data;  // server returns HTML with results
+            chatBody.appendChild(botDiv);
+            chatBody.scrollTop = chatBody.scrollHeight;
+        })
+        .catch(err => console.error(err));
+
+        userInput.value = '';
+    });
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

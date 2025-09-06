@@ -1,6 +1,6 @@
 """
-Enhanced Multilingual Health Chatbot with Alert System - FIXED VERSION
-Features: User Authentication, MongoDB Storage, Email Alerts
+Enhanced Multilingual Health Chatbot with Alert System - Twilio Integration
+Features: User Authentication, MongoDB Storage, Email & SMS/WhatsApp Alerts via Twilio
 """
 
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
@@ -19,6 +19,7 @@ from nltk.tokenize import word_tokenize
 from nltk.stem import PorterStemmer
 import warnings
 from pymongo import MongoClient
+from bson import ObjectId
 from werkzeug.security import generate_password_hash, check_password_hash
 import smtplib
 from email.mime.text import MIMEText
@@ -27,6 +28,8 @@ from datetime import datetime, timedelta
 import os
 from functools import wraps
 import secrets
+from twilio.rest import Client
+from twilio.base.exceptions import TwilioException
 
 # Download required NLTK data
 try:
@@ -41,6 +44,305 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+class TwilioAlertSystem:
+    """Handle SMS and WhatsApp alerts for critical health conditions using Twilio."""
+    
+    def __init__(self):
+        """Initialize Twilio system."""
+        # Twilio credentials - should be environment variables in production
+        self.account_sid = os.getenv("TWILIO_ACCOUNT_SID", "AC8c4aaafcdcfda6f298cf4433e30d82b3")
+        self.auth_token = os.getenv("TWILIO_AUTH_TOKEN", "493f99b4b0e884961fe40d81874c94ee")
+        self.phone_number = os.getenv("TWILIO_PHONE_NUMBER", "+17609335978")
+        self.whatsapp_number = os.getenv("TWILIO_WHATSAPP_NUMBER", "whatsapp:+14155238886")
+        
+        # Initialize Twilio client
+        self.client = None
+        self.api_ready = self._initialize_client()
+        
+        if self.api_ready:
+            logger.info("Twilio API initialized successfully")
+        else:
+            logger.error("Twilio API initialization failed")
+    
+    def _initialize_client(self) -> bool:
+        """Initialize Twilio client and test connection."""
+        try:
+            if not self.account_sid or not self.auth_token:
+                logger.error("Twilio credentials not provided")
+                return False
+            
+            self.client = Client(self.account_sid, self.auth_token)
+            
+            # Test API connection by fetching account info
+            account = self.client.api.accounts(self.account_sid).fetch()
+            logger.info(f"Twilio account verified: {account.friendly_name}")
+            return True
+            
+        except TwilioException as e:
+            logger.error(f"Twilio initialization failed: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error initializing Twilio: {e}")
+            return False
+    
+    def send_emergency_sms(self, user_phone: str, user_name: str, condition: str, doctor: Dict) -> bool:
+        """Send emergency SMS alert with doctor details using Twilio."""
+        if not self.api_ready or not self.client:
+            logger.error("Twilio API not ready")
+            return False
+        
+        if not user_phone:
+            logger.warning("No phone number provided for SMS alert")
+            return False
+        
+        try:
+            # Format phone number for international format
+            formatted_phone = self._format_phone_number(user_phone)
+            if not formatted_phone:
+                logger.error(f"Invalid phone number format: {user_phone}")
+                return False
+            
+            # Create SMS message
+            sms_body = self._create_emergency_sms_body(user_name, condition, doctor)
+            
+            # Send SMS via Twilio
+            message = self.client.messages.create(
+                body=sms_body,
+                from_=self.phone_number,
+                to=formatted_phone
+            )
+            
+            if message.sid:
+                logger.info(f"Emergency SMS sent successfully via Twilio to {formatted_phone} (SID: {message.sid})")
+                return True
+            else:
+                logger.error("Failed to send SMS via Twilio - no SID returned")
+                return False
+            
+        except TwilioException as e:
+            logger.error(f"Twilio SMS error: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error sending SMS via Twilio: {e}")
+            return False
+    
+    def send_emergency_whatsapp(self, user_phone: str, user_name: str, condition: str, doctor: Dict) -> bool:
+        """Send emergency WhatsApp alert with doctor details using Twilio."""
+        if not self.api_ready or not self.client:
+            logger.error("Twilio API not ready")
+            return False
+        
+        if not user_phone:
+            logger.warning("No phone number provided for WhatsApp alert")
+            return False
+        
+        try:
+            # Format phone number for WhatsApp (international format)
+            formatted_phone = self._format_phone_number(user_phone)
+            if not formatted_phone:
+                logger.error(f"Invalid phone number format: {user_phone}")
+                return False
+            
+            # WhatsApp requires 'whatsapp:' prefix
+            whatsapp_to = f"whatsapp:{formatted_phone}"
+            
+            # Create WhatsApp message (can be longer than SMS)
+            whatsapp_body = self._create_emergency_whatsapp_body(user_name, condition, doctor)
+            
+            # Send WhatsApp message via Twilio
+            message = self.client.messages.create(
+                body=whatsapp_body,
+                from_=self.whatsapp_number,
+                to=whatsapp_to
+            )
+            
+            if message.sid:
+                logger.info(f"Emergency WhatsApp sent successfully via Twilio to {formatted_phone} (SID: {message.sid})")
+                return True
+            else:
+                logger.error("Failed to send WhatsApp via Twilio - no SID returned")
+                return False
+            
+        except TwilioException as e:
+            logger.error(f"Twilio WhatsApp error: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error sending WhatsApp via Twilio: {e}")
+            return False
+    
+    def _format_phone_number(self, phone: str) -> Optional[str]:
+        """Format phone number for international format (E.164)."""
+        if not phone:
+            return None
+        
+        # Remove all non-numeric characters
+        cleaned = re.sub(r'[^\d]', '', phone)
+        
+        # Handle different phone number formats
+        if cleaned.startswith('1') and len(cleaned) == 11:
+            # US/Canada number
+            return f"+{cleaned}"
+        elif cleaned.startswith('91') and len(cleaned) == 12:
+            # Indian number with country code
+            return f"+{cleaned}"
+        elif len(cleaned) == 10:
+            # Assume US number without country code
+            return f"+1{cleaned}"
+        elif len(cleaned) == 10 and not cleaned.startswith('1'):
+            # Could be Indian number without country code
+            return f"+91{cleaned}"
+        elif cleaned.startswith('0') and len(cleaned) == 11:
+            # Indian number with leading 0, remove 0 and add country code
+            return f"+91{cleaned[1:]}"
+        
+        # If already in international format
+        if len(cleaned) >= 10 and len(cleaned) <= 15:
+            return f"+{cleaned}"
+        
+        logger.warning(f"Invalid phone number format: {phone}")
+        return None
+    
+    def _create_emergency_sms_body(self, user_name: str, condition: str, doctor: Dict) -> str:
+        """Create emergency SMS message body (optimized for SMS character limits)."""
+        message = f"""🚨 HEALTH EMERGENCY ALERT
+
+{user_name}, detected: {condition}
+IMMEDIATE MEDICAL ATTENTION REQUIRED!
+
+EMERGENCY DOCTOR:
+Dr. {doctor.get('name', 'N/A')}
+Phone: {doctor.get('phone', 'N/A')}
+Hospital: {doctor.get('hospital', 'N/A')}
+
+CALL NOW: {doctor.get('phone', 'N/A')}
+Or dial 911 for emergency
+
+Time: {datetime.now().strftime('%m/%d %H:%M')}
+
+This is an automated health alert from CuroAssist."""
+        
+        # SMS has 160 character limit, create shorter version if needed
+        if len(message) > 160:
+            short_message = f"""🚨 HEALTH EMERGENCY
+{user_name}: {condition}
+Call Dr. {doctor.get('name', 'N/A')}: {doctor.get('phone', 'N/A')}
+Or dial 911
+Time: {datetime.now().strftime('%m/%d %H:%M')}
+-CuroAssist"""
+            return short_message
+        
+        return message
+    
+    def _create_emergency_whatsapp_body(self, user_name: str, condition: str, doctor: Dict) -> str:
+        """Create emergency WhatsApp message body (can be longer than SMS)."""
+        message = f"""🚨 *HEALTH EMERGENCY ALERT* 🚨
+
+Dear *{user_name}*,
+
+Our system has detected a potentially serious condition: *{condition}*
+
+⚠️ *IMMEDIATE ACTION REQUIRED* ⚠️
+
+Please contact the following doctor immediately or visit the nearest emergency room:
+
+*RECOMMENDED DOCTOR:*
+👨‍⚕️ *Name:* Dr. {doctor.get('name', 'N/A')}
+🏥 *Hospital:* {doctor.get('hospital', 'N/A')}
+📞 *Phone:* {doctor.get('phone', 'N/A')}
+📧 *Email:* {doctor.get('email', 'N/A')}
+📍 *Address:* {doctor.get('address', 'N/A')}
+
+*URGENT CONTACTS:*
+• Doctor: {doctor.get('phone', 'N/A')}
+• Emergency: 911
+• Ambulance: Call 911
+
+*IMPORTANT NOTES:*
+• This is an automated alert based on symptom analysis
+• Do not delay seeking professional medical help
+• If symptoms worsen, call emergency services immediately
+
+*Time of Alert:* {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+*Disclaimer:* This alert is based on automated analysis and should not replace professional medical judgment.
+
+Stay Safe,
+*CuroAssist Health Alert System*"""
+        
+        return message
+    
+    def send_bulk_messages(self, phone_numbers: List[str], message: str, use_whatsapp: bool = False) -> Dict:
+        """Send bulk messages to multiple numbers via SMS or WhatsApp."""
+        if not self.api_ready or not self.client:
+            return {"success": False, "error": "API not ready"}
+        
+        try:
+            results = {
+                "successful": [],
+                "failed": [],
+                "total_attempted": len(phone_numbers)
+            }
+            
+            for phone in phone_numbers:
+                formatted = self._format_phone_number(phone)
+                if not formatted:
+                    results["failed"].append({"phone": phone, "error": "Invalid format"})
+                    continue
+                
+                try:
+                    if use_whatsapp:
+                        msg = self.client.messages.create(
+                            body=message,
+                            from_=self.whatsapp_number,
+                            to=f"whatsapp:{formatted}"
+                        )
+                    else:
+                        msg = self.client.messages.create(
+                            body=message,
+                            from_=self.phone_number,
+                            to=formatted
+                        )
+                    
+                    results["successful"].append({
+                        "phone": formatted,
+                        "sid": msg.sid
+                    })
+                    
+                except TwilioException as e:
+                    results["failed"].append({
+                        "phone": formatted,
+                        "error": str(e)
+                    })
+            
+            return {
+                "success": True,
+                "results": results,
+                "success_count": len(results["successful"]),
+                "failure_count": len(results["failed"])
+            }
+                
+        except Exception as e:
+            logger.error(f"Bulk message error: {e}")
+            return {"success": False, "error": str(e)}
+    
+    def get_message_status(self, message_sid: str) -> Dict:
+        """Get status of a sent message."""
+        if not self.api_ready or not self.client:
+            return {"success": False, "error": "API not ready"}
+        
+        try:
+            message = self.client.messages(message_sid).fetch()
+            return {
+                "success": True,
+                "status": message.status,
+                "error_code": message.error_code,
+                "error_message": message.error_message,
+                "date_sent": message.date_sent.isoformat() if message.date_sent else None,
+                "date_updated": message.date_updated.isoformat() if message.date_updated else None
+            }
+        except TwilioException as e:
+            return {"success": False, "error": str(e)}
 
 class DatabaseManager:
     """Handle MongoDB operations with enhanced debugging."""
@@ -74,30 +376,30 @@ class DatabaseManager:
             if self.doctors.count_documents({}) == 0:
                 sample_doctors = [
                     {
-                        "name": "Dr. Rajesh Kumar",
+                        "name": "Dr. John Smith",
                         "specialization": "General Medicine",
-                        "email": "dr.rajesh@hospital.com",
-                        "phone": "+91-9876543210",
+                        "email": "dr.john@hospital.com",
+                        "phone": "+1-555-123-4567",
                         "hospital": "City General Hospital",
-                        "address": "123 Medical Center, Delhi",
+                        "address": "123 Medical Center, New York, NY",
                         "emergency_available": True
                     },
                     {
-                        "name": "Dr. Priya Sharma",
+                        "name": "Dr. Sarah Johnson",
                         "specialization": "Emergency Medicine",
-                        "email": "dr.priya@emergency.com",
-                        "phone": "+91-9876543211",
+                        "email": "dr.sarah@emergency.com",
+                        "phone": "+1-555-987-6543",
                         "hospital": "Emergency Care Center",
-                        "address": "456 Emergency Lane, Mumbai",
+                        "address": "456 Emergency Lane, Los Angeles, CA",
                         "emergency_available": True
                     },
                     {
-                        "name": "Dr. Amit Singh",
+                        "name": "Dr. Michael Brown",
                         "specialization": "Cardiology",
-                        "email": "dr.amit@cardio.com",
-                        "phone": "+91-9876543212",
+                        "email": "dr.michael@cardio.com",
+                        "phone": "+1-555-456-7890",
                         "hospital": "Heart Care Institute",
-                        "address": "789 Heart Street, Bangalore",
+                        "address": "789 Heart Street, Chicago, IL",
                         "emergency_available": True
                     }
                 ]
@@ -121,8 +423,8 @@ class DatabaseManager:
             logger.error(f"Error checking user existence: {e}")
             return False
     
-    def create_user(self, name: str, email: str, password: str) -> bool:
-        """Create a new user account with detailed logging."""
+    def create_user(self, name: str, email: str, password: str, phone: Optional[str] = None) -> bool:
+        """Create a new user account with optional phone number."""
         try:
             print(f"Creating user: {email}")
             
@@ -135,7 +437,7 @@ class DatabaseManager:
                 print(f"User {email} already exists")
                 return False
             
-            # Hash the password with explicit method
+            # Hash the password
             print(f"Hashing password for {email}")
             password_hash = generate_password_hash(password, method='pbkdf2:sha256')
             print(f"Password hash generated (first 50 chars): {password_hash[:50]}...")
@@ -144,8 +446,10 @@ class DatabaseManager:
                 "name": name,
                 "email": email,
                 "password": password_hash,
+                "phone": phone,  # Store phone number for SMS/WhatsApp alerts
                 "created_at": datetime.now(),
-                "last_login": datetime.now()
+                "last_login": datetime.now(),
+                "whatsapp_enabled": False  # User can enable WhatsApp alerts
             }
             
             print(f"Inserting user data into database...")
@@ -169,7 +473,6 @@ class DatabaseManager:
         print(f"\n=== LOGIN ATTEMPT DEBUG ===")
         print(f"Email: {email}")
         print(f"Password length: {len(password) if password else 0}")
-        print(f"Password: {password}")  # REMOVE THIS IN PRODUCTION!
         
         try:
             if not self.client:
@@ -181,34 +484,20 @@ class DatabaseManager:
                 return None
             
             print(f"Looking up user in database: {email}")
-            # Find user by email
             user = self.users.find_one({"email": email})
             
             if not user:
                 print(f"ERROR: No user found with email: {email}")
-                # Show what users actually exist (for debugging)
-                user_count = self.users.count_documents({})
-                print(f"Total users in database: {user_count}")
-                if user_count > 0:
-                    print("Existing users:")
-                    for existing_user in self.users.find({}, {"email": 1, "name": 1}).limit(5):
-                        print(f"  - {existing_user.get('email', 'No email')}")
                 return None
             
             print(f"SUCCESS: Found user: {user.get('name', 'No name')}")
-            print(f"Email match: {user.get('email') == email}")
             
             stored_hash = user.get("password", "")
             if not stored_hash:
                 print("ERROR: No password hash found for user")
                 return None
             
-            print(f"Password hash exists: {bool(stored_hash)}")
-            print(f"Password hash length: {len(stored_hash)}")
-            print(f"Password hash (first 50 chars): {stored_hash[:50]}...")
-            
             print(f"Testing password verification...")
-            # Test password verification
             verification_result = check_password_hash(stored_hash, password)
             print(f"Password verification result: {verification_result}")
             
@@ -219,7 +508,7 @@ class DatabaseManager:
                 try:
                     update_result = self.users.update_one(
                         {"_id": user["_id"]}, 
-                        {"$set": {"last_login": datetime.datetime.now(datetime.timezone.utc)}}
+                        {"$set": {"last_login": datetime.now()}}
                     )
                     print(f"Last login updated: {update_result.modified_count} documents")
                 except Exception as update_error:
@@ -229,19 +518,6 @@ class DatabaseManager:
                 return user
             else:
                 print("ERROR: Password verification failed")
-                
-                # Additional debugging - test hash generation
-                print("Additional debugging:")
-                test_hash = generate_password_hash(password, method='pbkdf2:sha256')
-                test_verify = check_password_hash(test_hash, password)
-                print(f"Self-test (generate new hash and verify): {test_verify}")
-                
-                # Check hash format
-                hash_parts = stored_hash.split('$')
-                print(f"Stored hash format parts: {len(hash_parts)}")
-                if len(hash_parts) > 0:
-                    print(f"Hash method: {hash_parts[0]}")
-                
                 print("=== LOGIN FAILED ===\n")
                 return None
                 
@@ -259,7 +535,7 @@ class DatabaseManager:
                 return False
                 
             record_data["user_id"] = user_id
-            record_data["timestamp"] = datetime.datetime.now(datetime.timezone.utc)
+            record_data["timestamp"] = datetime.now()
             result = self.health_records.insert_one(record_data)
             return bool(result.inserted_id)
         except Exception as e:
@@ -282,13 +558,13 @@ class DatabaseManager:
             if not self.client:
                 return False
                 
-            alert_data["timestamp"] = datetime.datetime.now(datetime.timezone.utc)
+            alert_data["timestamp"] = datetime.now()
             result = self.alert_logs.insert_one(alert_data)
             return bool(result.inserted_id)
         except Exception as e:
             logger.error(f"Error logging alert: {e}")
             return False
-        
+
 class EmailAlertSystem:
     """Handle email alerts for critical health conditions."""
     
@@ -338,8 +614,8 @@ class EmailAlertSystem:
             • Keep this email for reference during your medical consultation
             
             Emergency Contacts:
-            • Ambulance: 102 (India)
-            • Emergency Services: 112 (India)
+            • Ambulance: 911 (US/Canada)
+            • Emergency Services: 911
             
             Time of Alert: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             
@@ -369,10 +645,11 @@ class EmailAlertSystem:
 class MultilingualHealthChatbot:
     """Enhanced chatbot with alert system and user management."""
 
-    def __init__(self, db_manager: DatabaseManager, email_system: EmailAlertSystem):
-        """Initialize the chatbot with database and email systems."""
+    def __init__(self, db_manager: DatabaseManager, email_system: EmailAlertSystem, messaging_system: TwilioAlertSystem):
+        """Initialize the chatbot with database, email, and messaging systems."""
         self.db_manager = db_manager
         self.email_system = email_system
+        self.messaging_system = messaging_system
         self.model = None
         self.symptoms_dict = {}
         self.diseases_list = {}
@@ -944,14 +1221,14 @@ class MultilingualHealthChatbot:
             }
 
     def _handle_emergency_case(self, predicted_disease: str, symptoms: List[str]) -> str:
-        """Handle emergency medical conditions."""
+        """Handle emergency medical conditions with email, SMS, and WhatsApp alerts."""
         emergency_response = f"""
 🚨 **MEDICAL EMERGENCY DETECTED** 🚨
 
 Based on your symptoms, you may have **{predicted_disease}**, which requires immediate medical attention.
 
 ⚠️ **IMMEDIATE ACTION REQUIRED:**
-• Contact emergency services immediately (Call 102 or 112 in India)
+• Contact emergency services immediately (Call 911)
 • Go to the nearest hospital emergency room
 • Do not delay seeking professional medical help
 
@@ -967,17 +1244,53 @@ Based on your symptoms, you may have **{predicted_disease}**, which requires imm
                     # Get the most appropriate doctor (first available for now)
                     selected_doctor = doctors[0]
                     
-                    # Send email alert
-                    alert_sent = self.email_system.send_emergency_alert(
-                        self.current_user,
-                        predicted_disease,
-                        selected_doctor
-                    )
+                    # Send alerts
+                    email_sent = False
+                    sms_sent = False
+                    whatsapp_sent = False
                     
-                    if alert_sent:
-                        emergency_response += (
-                            "\n\n📧 **Emergency alert sent to your email with doctor contact details.**"
+                    # Send email alert
+                    if self.email_system:
+                        email_sent = self.email_system.send_emergency_alert(
+                            self.current_user,
+                            predicted_disease,
+                            selected_doctor
                         )
+                    
+                    # Send SMS and WhatsApp alerts if phone number is available
+                    user_phone = self.current_user.get('phone')
+                    if user_phone and self.messaging_system and self.messaging_system.api_ready:
+                        # Send SMS
+                        sms_sent = self.messaging_system.send_emergency_sms(
+                            user_phone,
+                            self.current_user.get('name', 'User'),
+                            predicted_disease,
+                            selected_doctor
+                        )
+                        
+                        # Send WhatsApp if user has it enabled
+                        whatsapp_enabled = self.current_user.get('whatsapp_enabled', False)
+                        if whatsapp_enabled:
+                            whatsapp_sent = self.messaging_system.send_emergency_whatsapp(
+                                user_phone,
+                                self.current_user.get('name', 'User'),
+                                predicted_disease,
+                                selected_doctor
+                            )
+                    
+                    # Update response based on what was sent
+                    alert_status = []
+                    if email_sent:
+                        alert_status.append("📧 Emergency alert sent to your email")
+                    if sms_sent:
+                        alert_status.append("📱 Emergency SMS sent to your phone")
+                    if whatsapp_sent:
+                        alert_status.append("💬 Emergency WhatsApp message sent")
+                    
+                    if alert_status:
+                        emergency_response += f"\n\n{' and '.join(alert_status)} with doctor contact details."
+                    else:
+                        emergency_response += "\n\n⚠️ Unable to send alerts. Please contact emergency services immediately."
                     
                     # Log the alert
                     self.db_manager.log_alert({
@@ -985,12 +1298,14 @@ Based on your symptoms, you may have **{predicted_disease}**, which requires imm
                         'predicted_disease': predicted_disease,
                         'symptoms': symptoms,
                         'doctor_contacted': selected_doctor,
-                        'alert_sent': alert_sent
+                        'email_sent': email_sent,
+                        'sms_sent': sms_sent,
+                        'whatsapp_sent': whatsapp_sent,
+                        'messaging_service': 'Twilio',
+                        'user_phone': user_phone
                     })
                 else:
-                    emergency_response += (
-                        "\n\n❌ **Failed to send email alert. Please contact emergency services immediately.**"
-                    )
+                    emergency_response += "\n\n❌ Failed to retrieve doctor information. Please contact emergency services immediately."
 
         except Exception as e:
             emergency_response += f"\n\n⚠️ Error while processing emergency alert: {str(e)}"
@@ -1034,18 +1349,20 @@ Based on your symptoms, you may have **{predicted_disease}**, which requires imm
 
 # ----------------------- Flask App -----------------------
 app = Flask(__name__)
-app.secret_key = secrets.token_hex(16)  # Generate a secure secret key
+app.secret_key = secrets.token_hex(16)
 
 # Initialize systems
 try:
     db_manager = DatabaseManager()
     email_system = EmailAlertSystem()
-    chatbot = MultilingualHealthChatbot(db_manager, email_system)
+    messaging_system = TwilioAlertSystem()  # Using Twilio instead of Fast2SMS
+    chatbot = MultilingualHealthChatbot(db_manager, email_system, messaging_system)
     logger.info("All systems initialized successfully")
 except Exception as e:
     logger.error(f"Failed to initialize systems: {e}")
     db_manager = None
     email_system = None
+    messaging_system = None
     chatbot = None
 
 def login_required(f):
@@ -1066,7 +1383,7 @@ def index():
 
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
-    """Handle user signup."""
+    """Handle user signup with phone number support."""
     if request.method == "POST":
         try:
             # Handle JSON requests (API signup)
@@ -1076,6 +1393,7 @@ def signup():
                 password = data.get("password", "").strip()
                 confirm_password = data.get("confirm", "").strip()
                 name = data.get("name", "").strip() or "User"
+                phone = data.get("phone", "").strip()  # Get phone number
 
                 if not email or not password:
                     return jsonify({"success": False, "message": "Email and password required"}), 400
@@ -1095,7 +1413,7 @@ def signup():
                 if db_manager.user_exists(email):
                     return jsonify({"success": False, "message": "Email already registered"}), 409
 
-                success = db_manager.create_user(name, email, password)
+                success = db_manager.create_user(name, email, password, phone)
                 if success:
                     logger.info(f"User account created successfully: {email}")
                     return jsonify({"success": True, "message": "Account created successfully"}), 201
@@ -1107,6 +1425,7 @@ def signup():
             password = request.form.get("password", "").strip()
             confirm_password = request.form.get("confirm", "").strip()
             name = request.form.get("name", "").strip() or email.split('@')[0]
+            phone = request.form.get("phone", "").strip()  # Get phone number
 
             if not email or not password:
                 return render_template("signup.html", error="Email and password required")
@@ -1126,11 +1445,10 @@ def signup():
             if db_manager.user_exists(email):
                 return render_template("signup.html", error="Email already registered")
 
-            success = db_manager.create_user(name, email, password)
+            success = db_manager.create_user(name, email, password, phone)
             if success:
                 logger.info(f"User account created successfully: {email}")
                 return redirect(url_for("login", message="Account created successfully"))
-
             else:
                 return render_template("signup.html", error="Failed to create account")
 
@@ -1282,10 +1600,13 @@ def health_check():
     """Health check endpoint."""
     try:
         status = {
-            'status': 'healthy' if all([chatbot, db_manager, email_system]) else 'unhealthy',
+            'status': 'healthy' if all([chatbot, db_manager, email_system, messaging_system]) else 'unhealthy',
             'chatbot_initialized': chatbot is not None,
             'database_connected': db_manager is not None and db_manager.client is not None,
             'email_system_ready': email_system is not None,
+            'messaging_system_ready': messaging_system is not None and messaging_system.api_ready,
+            'messaging_service': 'Twilio',
+            'twilio_features': ['SMS', 'WhatsApp'] if messaging_system and messaging_system.api_ready else [],
             'supported_languages': list(chatbot.supported_languages.keys()) if chatbot else [],
             'model_loaded': chatbot.model is not None if chatbot else False,
             'datasets_loaded': len(chatbot.datasets) if chatbot else 0
@@ -1317,6 +1638,144 @@ def history():
         logger.error(f"Error fetching history: {e}")
         return render_template('history.html', records=[])
 
+@app.route('/update_phone', methods=['POST'])
+@login_required
+def update_phone():
+    """Update user's phone number for SMS/WhatsApp alerts."""
+    try:
+        if not db_manager or not db_manager.client:
+            return jsonify({'success': False, 'message': 'Database unavailable'}), 500
+        
+        data = request.get_json()
+        phone = data.get('phone', '').strip()
+        
+        if not phone:
+            return jsonify({'success': False, 'message': 'Phone number required'}), 400
+        
+        # Validate phone number format (basic validation for international numbers)
+        if not re.match(r'^\+?[0-9]{10,15}', phone):
+            return jsonify({
+                'success': False,
+                'message': 'Invalid phone number format. Please enter a valid phone number with country code.'
+            }), 400
+        
+        user_id = session['user_id']
+        result = db_manager.users.update_one(
+            {'_id': ObjectId(user_id)},
+            {'$set': {'phone': phone}}
+        )
+        
+        if result.modified_count > 0:
+            logger.info(f"Phone number updated for user: {session.get('user_email')}")
+            return jsonify({
+                'success': True, 
+                'message': 'Phone number updated successfully. You will now receive SMS alerts via Twilio for emergency conditions.'
+            })
+        else:
+            return jsonify({'success': False, 'message': 'Failed to update phone number'}), 500
+            
+    except Exception as e:
+        logger.error(f"Error updating phone number: {e}")
+        return jsonify({'success': False, 'message': 'Server error occurred'}), 500
+
+@app.route('/enable_whatsapp', methods=['POST'])
+@login_required
+def enable_whatsapp():
+    """Enable/disable WhatsApp alerts for user."""
+    try:
+        if not db_manager or not db_manager.client:
+            return jsonify({'success': False, 'message': 'Database unavailable'}), 500
+        
+        data = request.get_json()
+        enabled = data.get('enabled', False)
+        
+        user_id = session['user_id']
+        result = db_manager.users.update_one(
+            {'_id': ObjectId(user_id)},
+            {'$set': {'whatsapp_enabled': enabled}}
+        )
+        
+        if result.modified_count > 0:
+            status = "enabled" if enabled else "disabled"
+            logger.info(f"WhatsApp alerts {status} for user: {session.get('user_email')}")
+            return jsonify({
+                'success': True, 
+                'message': f'WhatsApp alerts {status} successfully.'
+            })
+        else:
+            return jsonify({'success': False, 'message': 'Failed to update WhatsApp setting'}), 500
+            
+    except Exception as e:
+        logger.error(f"Error updating WhatsApp setting: {e}")
+        return jsonify({'success': False, 'message': 'Server error occurred'}), 500
+
+@app.route('/test_messaging', methods=['POST'])
+@login_required
+def test_messaging():
+    """Test SMS and WhatsApp messaging functionality."""
+    try:
+        if not messaging_system or not messaging_system.api_ready:
+            return jsonify({'success': False, 'message': 'Twilio messaging system not ready'}), 500
+        
+        data = request.get_json()
+        phone = data.get('phone', '').strip()
+        message_type = data.get('type', 'sms')  # 'sms' or 'whatsapp'
+        
+        if not phone:
+            return jsonify({'success': False, 'message': 'Phone number required'}), 400
+        
+        # Send test message
+        test_message = f"Test message from Health Chatbot at {datetime.now().strftime('%H:%M:%S')}. Twilio integration working!"
+        
+        # Create dummy doctor data for testing
+        test_doctor = {
+            'name': 'Test Doctor',
+            'phone': '+1-555-123-4567',
+            'hospital': 'Test Hospital'
+        }
+        
+        success = False
+        if message_type == 'whatsapp':
+            success = messaging_system.send_emergency_whatsapp(
+                phone, 
+                session.get('user_name', 'Test User'), 
+                'Test Condition', 
+                test_doctor
+            )
+            message = 'Test WhatsApp message sent successfully via Twilio!' if success else 'Failed to send test WhatsApp message'
+        else:
+            success = messaging_system.send_emergency_sms(
+                phone, 
+                session.get('user_name', 'Test User'), 
+                'Test Condition', 
+                test_doctor
+            )
+            message = 'Test SMS sent successfully via Twilio!' if success else 'Failed to send test SMS'
+        
+        if success:
+            return jsonify({'success': True, 'message': message})
+        else:
+            return jsonify({'success': False, 'message': message}), 500
+            
+    except Exception as e:
+        logger.error(f"Error sending test message: {e}")
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+
+@app.route('/message_status/<message_sid>')
+@login_required
+def get_message_status(message_sid):
+    """Get status of a sent message."""
+    try:
+        if not messaging_system or not messaging_system.api_ready:
+            return jsonify({'success': False, 'message': 'Twilio messaging system not ready'}), 500
+        
+        status = messaging_system.get_message_status(message_sid)
+        return jsonify(status)
+        
+    except Exception as e:
+        logger.error(f"Error getting message status: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @app.errorhandler(404)
 def not_found(error):
     """Handle 404 errors."""
@@ -1329,8 +1788,8 @@ def internal_error(error):
 
 if __name__ == '__main__':
     # Add startup checks
-    print("🚀 Starting Enhanced Multilingual Health Chatbot with Alert System...")
-    print("=" * 70)
+    print("🚀 Starting Enhanced Multilingual Health Chatbot with Twilio Alert System...")
+    print("=" * 80)
     
     if chatbot:
         print("✅ Chatbot initialized successfully")
@@ -1353,18 +1812,50 @@ if __name__ == '__main__':
     else:
         print("❌ Email alert system initialization failed")
     
-    print("=" * 70)
+    if messaging_system:
+        print("✅ Twilio messaging system initialized")
+        print(f"✅ Twilio API ready: {'Yes' if messaging_system.api_ready else 'No'}")
+        print(f"✅ SMS enabled: Yes")
+        print(f"✅ WhatsApp enabled: Yes")
+        print(f"✅ Phone number: {messaging_system.phone_number}")
+        print(f"✅ WhatsApp number: {messaging_system.whatsapp_number}")
+    else:
+        print("❌ Twilio messaging system initialization failed")
+    
+    print("=" * 80)
     print("🌐 Starting Flask server...")
-    print("📝 Remember to set environment variables for email alerts:")
+    print("📝 Environment variables needed:")
+    print("   EMAIL ALERTS:")
     print("   - ALERT_EMAIL: Your email address")
     print("   - ALERT_EMAIL_PASSWORD: Your app password")
+    print("   TWILIO MESSAGING:")
+    print("   - TWILIO_ACCOUNT_SID: Your Twilio Account SID")
+    print("   - TWILIO_AUTH_TOKEN: Your Twilio Auth Token")
+    print("   - TWILIO_PHONE_NUMBER: Your Twilio phone number")
+    print("   - TWILIO_WHATSAPP_NUMBER: Your Twilio WhatsApp number")
     print("💾 MongoDB should be running on localhost:27017")
     print("🔗 Available routes:")
     print("   - /login - User login")
-    print("   - /signup - User registration")
+    print("   - /signup - User registration (with phone number)")
     print("   - /chatbot - Main chatbot interface")
     print("   - /health - System health check")
+    print("   - /update_phone - Update user phone number")
+    print("   - /enable_whatsapp - Enable/disable WhatsApp alerts")
+    print("   - /test_messaging - Test SMS/WhatsApp functionality")
+    print("   - /message_status/<sid> - Get message delivery status")
+    print("🚨 Emergency features:")
+    print("   - Email alerts for critical conditions")
+    print("   - SMS alerts via Twilio with doctor details")
+    print("   - WhatsApp alerts via Twilio (rich formatting)")
+    print("   - Message delivery status tracking")
+    print("   - Comprehensive alert logging")
+    print("📱 Twilio Features:")
+    print("   - Supports international phone numbers (E.164 format)")
+    print("   - SMS messaging with automatic fallback")
+    print("   - WhatsApp Business messaging")
+    print("   - Message status tracking")
+    print("   - Bulk messaging capability")
+    print("   - Real-time delivery notifications")
     
     # Run Flask app
     app.run(debug=True, host='0.0.0.0', port=5000)
-            
